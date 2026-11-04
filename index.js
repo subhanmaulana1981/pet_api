@@ -72,7 +72,7 @@ mongoose
   .then(() => {
     console.log('✅ Connected to MongoDB successfully');
     app.listen(port, () => {
-      console.log(`🚀 Server is running on http://localhost:${port} in ${process.env.NODE_ENV || 'development'} mode`);
+      console.log(`🚀 Server is running on ${process.env.DB_HOST}:${port} in ${process.env.NODE_ENV || 'development'} mode`);
     });
   })
   .catch((err) => {
