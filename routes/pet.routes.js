@@ -185,6 +185,7 @@ router.patch('/:id/favorite', async (req, res, next) => {
     // Toggle if not explicitly specified in body
     if (req.body && req.body.isFavorite !== undefined) {
       pet.isFavorite = parseBoolean(req.body.isFavorite);
+
     } else {
       pet.isFavorite = !pet.isFavorite;
     }
@@ -195,6 +196,7 @@ router.patch('/:id/favorite', async (req, res, next) => {
       message: `Pet favorite status updated to ${pet.isFavorite}`,
       data: pet
     });
+    
   } catch (error) {
     next(error);
   }
