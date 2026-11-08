@@ -11,10 +11,49 @@ const petRoutes = require('./routes/pet.routes');
 const app = express();
 const port = process.env.PORT || 3000;
 
+/* database connection string */
+const mongoURI =
+  process.env.MONGODB_URI ||
+  `mongodb://${process.env.DB_HOST || '127.0.0.1'}:${process.env.DB_PORT || 27017}/${process.env.DB_NAME || 'petdb'}`;
+
+/* connect database (cached for serverless invocations) */
+let isConnected = false;
+async function connectDB() {
+  if (mongoose.connection.readyState >= 1) {
+    return;
+  }
+  try {
+    await mongoose.connect(mongoURI);
+    isConnected = true;
+    console.log('✅ Connected to MongoDB successfully');
+  } catch (err) {
+    console.error('❌ Failed to connect to MongoDB:', err.message);
+    throw err;
+  }
+}
+
 /* middleware */
 app.use(cors());
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ limit: '10mb', extended: true }));
+
+/* middleware to ensure DB is connected before handling API requests */
+app.use(async (req, res, next) => {
+  // Allow root health check to respond immediately even if DB connection is in-flight
+  if (req.path === '/') {
+    return next();
+  }
+  try {
+    await connectDB();
+    next();
+  } catch (err) {
+    res.status(500).json({
+      success: false,
+      message: 'Database connection failed',
+      error: err.message
+    });
+  }
+});
 
 /* health / root route */
 app.get('/', (req, res) => {
@@ -61,22 +100,18 @@ app.use((err, req, res, next) => {
   });
 });
 
-/* database connection string */
-const mongoURI =
-  process.env.MONGODB_URI ||
-  `mongodb://${process.env.DB_HOST || '127.0.0.1'}:${process.env.DB_PORT || 27017}/${process.env.DB_NAME || 'petdb'}`;
-
-/* connect and start server */
-mongoose
-  .connect(mongoURI)
-  .then(() => {
-    console.log('✅ Connected to MongoDB successfully');
-    app.listen(port, () => {
-      console.log(`🚀 Server is running on ${process.env.DB_HOST}:${port} in ${process.env.NODE_ENV || 'development'} mode`);
+/* start server locally if not in Vercel serverless environment */
+if (!process.env.VERCEL) {
+  connectDB()
+    .then(() => {
+      app.listen(port, () => {
+        console.log(`🚀 Server is running on port ${port} in ${process.env.NODE_ENV || 'development'} mode`);
+      });
+    })
+    .catch((err) => {
+      console.error('👉 Make sure MongoDB is running. On Windows, run: net start MongoDB (as Admin)');
     });
-  })
-  .catch((err) => {
-    console.error('❌ Failed to connect to MongoDB:', err.message);
-    console.error('👉 Make sure MongoDB is running. On Windows, run: net start MongoDB (as Admin)');
-    process.exit(1);
-  });
+}
+
+/* export app for serverless (Vercel) */
+module.exports = app;
