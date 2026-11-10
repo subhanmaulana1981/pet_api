@@ -37,15 +37,19 @@ app.use(cors());
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ limit: '10mb', extended: true }));
 
-/* middleware to ensure DB is connected before handling API requests */
+/* middleware to ensure DB is connected 
+before handling API requests */
 app.use(async (req, res, next) => {
-  // Allow root health check to respond immediately even if DB connection is in-flight
+  // Allow root health check to respond immediately 
+  // even if DB connection is in-flight
   if (req.path === '/') {
     return next();
   }
+
   try {
     await connectDB();
     next();
+    
   } catch (err) {
     res.status(500).json({
       success: false,
@@ -108,6 +112,7 @@ if (!process.env.VERCEL) {
         console.log(`🚀 Server is running on port ${port} in ${process.env.NODE_ENV || 'development'} mode`);
       });
     })
+
     .catch((err) => {
       console.error('👉 Make sure MongoDB is running. On Windows, run: net start MongoDB (as Admin)');
     });
