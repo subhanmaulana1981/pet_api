@@ -1,16 +1,94 @@
+
+/* requirements */
 const express = require('express');
 const router = express.Router();
 const mongoose = require('mongoose');
 const Pet = require('../models/pet.models');
-
 // Helper to check valid MongoDB ObjectId
 const isValidId = (id) => mongoose.Types.ObjectId.isValid(id);
-
 // Helper to escape regex special characters
 const escapeRegex = (text) => text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-
 // Helper to parse boolean inputs
 const parseBoolean = (val) => val === true || val === 'true';
+
+/* handling data seeds */
+// 1. image loader helper
+const fs = require('fs');
+const path = require('path');
+// helper to convert an image file
+// from assets to base64 string
+const assetsDir = path.resolve(__dirname, '..', 'assets', 'images');
+const toRawBase64 = (filename) => {
+  const filePath = path.join(assetsDir, filename);
+  if (!fs.existsSync(filePath)) return null;
+
+  return fs.readFileSync(filePath).toString('base64');
+};
+
+// 2. sample dataset
+const samplePets = [
+  { name: 'Luna', species: 'cat', isFavorite: true, file: 'icons8-cat-94.png' },
+  { name: 'Milo', species: 'dog', isFavorite: true, file: 'icons8-puppy-94.png' },
+  { name: 'Thumper', species: 'rabbit', isFavorite: false, file: 'icons8-rabbit-94.png' },
+  { name: 'Rio', species: 'bird', isFavorite: true, file: 'icons8-parrot-speaking-94.png' },
+  { name: 'Barnaby', species: 'bird', isFavorite: false, file: 'icons8-owl-94.png' },
+  { name: 'Echo', species: 'fish', isFavorite: false, file: 'icons8-dolphin-94.png' },
+  { name: 'Pippa', species: 'poultry', isFavorite: false, file: 'icons8-chicken-94.png' },
+  { name: 'Raja', species: 'wild', isFavorite: false, file: 'icons8-tiger-94.png' }  
+];
+
+/** 
+* @route DELETE /api/pets
+* @desc delete all pres (truncate collection)
+*/
+router.delete('/', async (req, res, next) => {
+  try {
+    const result = await Pet.deleteMany({});
+    res.status(200).json({
+      success: true,
+      message: `cleared ${result.deletedCount} pets from database`,
+      deletedCount: result.deletedCount
+    });
+    
+  } catch (error) {
+    next(error);
+  }
+});
+
+/** 
+ * @route POST /api/pets/seed
+ * @desc Seed the database with sample pets
+ * @query clean=true (optional) 
+*/
+router.post('/seed', async (req, res, next) => {
+  try {
+    const isClean = req.query.clean === 'true' || req.body?.clean === true;
+    if (isClean) {
+      await Pet.deleteMany({});
+    }
+
+    const documents = samplePets.map((item) => ({
+      name: item.name,
+      species: item.species,
+      isFavorite: item.isFavorite,
+      image: toRawBase64(item.file)
+    }));
+    const inserted = await Pet.insertMany(documents);
+
+    res.status(201).json({
+      success: true,
+      message: isClean
+        ? `leaned database and seeded ${inserted.length} `
+        : `appended ${inserted.length} sample pets`,
+      count: inserted.length,
+      data: inserted
+    });
+
+  } catch (error) {
+    next(error);
+  }
+});
+
 
 /**
  * @route   GET /api/pets
